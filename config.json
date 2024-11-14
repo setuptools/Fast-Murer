@@ -1,0 +1,10 @@
+{
+	"binds":{
+		"mute_microphone":"INS",
+		"mute_speakers":"",
+		"exit_app":"ctrl+shift+r"
+	},
+	"app":{
+		"show_text":true
+	}
+}

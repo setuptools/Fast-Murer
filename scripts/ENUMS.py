@@ -1,0 +1,3 @@
+
+MUTE_MICRO:int = 1
+MUTE_SPEAKERS:int  = 5
