@@ -11,6 +11,7 @@ from functools import partial
 import ctypes
 import win32gui
 import win32process
+import threading
 
 
 from config import Config , environ
@@ -26,29 +27,20 @@ class FastMurer():
         self.speakers_muted = False
         self.hide = False
 
+        self.button_pressed = False
+
         asyncio.run(self.main())
 
 
     async def appBinds(self):
-        while True:
-            combinations={
-                "mute_microphone":[environ["CONFIG"]["binds"]["mute_microphone"],self.mute , [ENUMS.MUTE_MICRO]],
-                "mute_speakers":[environ["CONFIG"]["binds"]["mute_speakers"],self.mute , [ENUMS.MUTE_SPEAKERS]],
-                "exit_app":[environ["CONFIG"]["binds"]["exit_app"], self.exitApp, [0]]}
+        combinations={
+           "mute_microphone":[environ["CONFIG"]["binds"]["mute_microphone"],self.mute , [ENUMS.MUTE_MICRO]],
+           "mute_speakers":[environ["CONFIG"]["binds"]["mute_speakers"],self.mute , [ENUMS.MUTE_SPEAKERS]],
+           "exit_app":[environ["CONFIG"]["binds"]["exit_app"], self.exitApp, [0]]}
 
-            for name, info in combinations.items():
-                if info[0] != "":
-                    if (keyboard.is_pressed(info[0]) and 
-                          (info[0]is environ["CONFIG"]["binds"]["mute_microphone"] or 
-                          info[0] is environ["CONFIG"]["binds"]["mute_speakers"]) and 
-                          environ["CONFIG"]["binds"]["mute_microphone"] == environ["CONFIG"]["binds"]["mute_speakers"]):
-                        
-                        await info[1](*info[2])
-            
-                    elif keyboard.is_pressed(info[0]):
-                        await info[1](*info[2])
-
-            await asyncio.sleep(0.08)
+        keyboard.add_hotkey(combinations["mute_microphone"][0], lambda: asyncio.run_coroutine_threadsafe(self.mute(*combinations["mute_microphone"][2]), self.loop))
+        keyboard.add_hotkey(combinations["mute_speakers"][0], lambda: asyncio.run_coroutine_threadsafe(self.mute(*combinations["mute_speakers"][2]),self.loop))
+        keyboard.add_hotkey(combinations["exit_app"][0], lambda: asyncio.run_coroutine_threadsafe(self.exitApp(),self.loop))
 
     async def getDevices(self):
         while True:
@@ -62,7 +54,7 @@ class FastMurer():
 
 
     async def exitApp(self,*args):
-        exit(0)
+        exit(1)
 
     async def mute(self, _type):
         if _type == ENUMS.MUTE_MICRO:
@@ -91,7 +83,10 @@ class FastMurer():
 
 
 
-                
+    def create_event_loop(self):
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+        self.loop.run_forever()     
 
     async def main(self):
         environ["LOGGER"].info("Application was successfully initialized")
@@ -119,6 +114,8 @@ class FastMurer():
 
         
         # call event to get devices
+        run_loop = threading.Thread(target= self.create_event_loop, daemon= True)
+        run_loop.start()
 
         # loop for bind in app
         await asyncio.gather(
